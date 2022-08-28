@@ -1,4 +1,4 @@
-module tgonebot
+module github.com/huoxue1/tgonebot
 
 go 1.18
 

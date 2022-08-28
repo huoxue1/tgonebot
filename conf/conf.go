@@ -3,6 +3,7 @@ package conf
 import (
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/botuniverse/go-libonebot"
 	log "github.com/sirupsen/logrus"
@@ -22,28 +23,32 @@ var (
 )
 
 func InitConfig(path string) {
-	pathDir := strings.TrimSuffix(path, "config.yml")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath(pathDir)
-	viper.SetConfigName("config")
-	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			log.Errorln("配置文件不存在" + err.Error())
-			data, _ := yaml.Marshal(&config)
-			err := os.WriteFile(path, data, 0666)
-			if err != nil {
-				log.Errorln("写入配置文件错误" + err.Error())
-				return
+	var once sync.Once
+	once.Do(func() {
+		pathDir := strings.TrimSuffix(path, "config.yml")
+		viper.SetConfigType("yaml")
+		viper.AddConfigPath(pathDir)
+		viper.SetConfigName("config")
+		if err := viper.ReadInConfig(); err != nil {
+			if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+				log.Errorln("配置文件不存在" + err.Error())
+				data, _ := yaml.Marshal(&config)
+				err := os.WriteFile(path, data, 0666)
+				if err != nil {
+					log.Errorln("写入配置文件错误" + err.Error())
+					return
+				}
+			} else {
+				log.Errorln("加载配置文件出现未知错误" + err.Error())
 			}
-		} else {
-			log.Errorln("加载配置文件出现未知错误" + err.Error())
 		}
-	}
-	err := viper.Unmarshal(&config)
-	if err != nil {
-		log.Errorln("配置文件加载异常" + err.Error())
-		return
-	}
+		err := viper.Unmarshal(&config)
+		if err != nil {
+			log.Errorln("配置文件加载异常" + err.Error())
+			return
+		}
+	})
+
 }
 
 func GetConfig() *Config {

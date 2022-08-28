@@ -1,6 +1,7 @@
-package main
+package lib
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 	"time"
@@ -9,7 +10,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	log "github.com/sirupsen/logrus"
 
-	"tgonebot/utils"
+	"github.com/huoxue1/tgonebot/utils"
 )
 
 func registerAction(bot *tgbotapi.BotAPI, ob *libonebot.OneBot) {
@@ -45,7 +46,22 @@ func registerAction(bot *tgbotapi.BotAPI, ob *libonebot.OneBot) {
 			res.WriteFailed(libonebot.RetCodeBadParam, err)
 			return
 		}
-		userIDStr, err := req.Params.GetString("user_id")
+		detailType, err := req.Params.GetString("detail_type")
+		if err != nil {
+			log.Errorln("[send_message] detail_type")
+			res.WriteFailed(libonebot.RetCodeBadParam, err)
+			return
+		}
+		var idFrom string
+		switch detailType {
+		case "private":
+			idFrom = "user_id"
+		case "group":
+			idFrom = "group_id"
+		case "channel ":
+			idFrom = "channel_id"
+		}
+		userIDStr, err := req.Params.GetString(idFrom)
 		if err != nil {
 
 			log.Errorln("[send_message] 获取userID失败")
@@ -75,7 +91,13 @@ func registerAction(bot *tgbotapi.BotAPI, ob *libonebot.OneBot) {
 	})
 	// 撤回消息
 	mux.HandleFunc(libonebot.ActionDeleteMessage, func(res libonebot.ResponseWriter, req *libonebot.Request) {
-		msgID, err := req.Params.GetString("message_id")
+		msgIDMap, err := req.Params.GetMap("message_id")
+		if err != nil {
+			log.Errorln("[delete_message] 获取messageID失败")
+			res.WriteFailed(libonebot.RetCodeBadParam, err)
+			return
+		}
+		msgID, err := msgIDMap.GetString("message_id")
 		if err != nil {
 			log.Errorln("[delete_message] 获取messageID失败")
 			res.WriteFailed(libonebot.RetCodeBadParam, err)
@@ -101,13 +123,6 @@ func registerAction(bot *tgbotapi.BotAPI, ob *libonebot.OneBot) {
 
 	})
 
-	mux.HandleFunc(libonebot.ActionGetSelfInfo, func(res libonebot.ResponseWriter, req *libonebot.Request) {
-		res.WriteData(map[string]interface{}{
-			"user_id":          strconv.FormatInt(bot.Self.ID, 10),
-			"user_name":        bot.Self.UserName,
-			"user_displayname": "",
-		})
-	})
 	mux.HandleFunc(libonebot.ActionGetGroupInfo, func(res libonebot.ResponseWriter, req *libonebot.Request) {
 		groupIdStr, err := req.Params.GetString("group_id")
 		if err != nil {
@@ -126,5 +141,37 @@ func registerAction(bot *tgbotapi.BotAPI, ob *libonebot.OneBot) {
 			"group_name": chat.UserName,
 		})
 	})
+
+	mux.HandleFunc(libonebot.ActionGetFile, func(res libonebot.ResponseWriter, req *libonebot.Request) {
+		fileID, err := req.Params.GetString("file_id")
+		if err != nil {
+			log.Errorln("[get_file] 获取fileID参数错误" + err.Error())
+			res.WriteFailed(libonebot.RetCodeBadParam, err)
+			return
+		}
+		getType, err := req.Params.GetString("type")
+		if err != nil {
+			log.Errorln("[get_file] 获取type参数错误" + err.Error())
+			res.WriteFailed(libonebot.RetCodeBadParam, err)
+			return
+		}
+		if getType != "url" {
+			res.WriteFailed(libonebot.RetCodeUnsupportedParam, errors.New("un support param "+getType))
+			return
+		}
+		url, err := bot.GetFileDirectURL(fileID)
+		if err != nil {
+			log.Errorln("[get_file] 获取文件错误" + err.Error())
+			res.WriteFailed(libonebot.RetCodeExecutionErrorBase, err)
+			return
+		}
+
+		res.WriteData(map[string]any{
+			"name": "",
+			"url":  url,
+		})
+
+	})
+
 	ob.Handle(mux)
 }
