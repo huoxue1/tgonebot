@@ -10,10 +10,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func MessageToChattables(msg libonebot.Message, chatId int64) []tgbotapi.Chattable {
+func MessageToChattables(bot *tgbotapi.BotAPI, msg libonebot.Message, chatId int64) []tgbotapi.Chattable {
 
 	var results []tgbotapi.Chattable
 	var replyId int
+
+	var mention string
 
 	for _, segment := range msg {
 		switch segment.Type {
@@ -154,7 +156,45 @@ func MessageToChattables(msg libonebot.Message, chatId int64) []tgbotapi.Chattab
 			}
 			replyId = id
 
+		case libonebot.SegTypeMention:
+			{
+				userIDStr, err := segment.Data.GetString("user_id")
+				if err != nil {
+					log.Errorln("msgid不存在，将忽略消息段 " + segment.Type)
+					continue
+				}
+				userID, _ := strconv.ParseInt(userIDStr, 10, 64)
+				member, err := bot.GetChatMember(tgbotapi.GetChatMemberConfig{ChatConfigWithUser: tgbotapi.ChatConfigWithUser{
+					ChatID:             chatId,
+					SuperGroupUsername: "",
+					UserID:             userID,
+				}})
+				if err != nil {
+					log.Errorln("member不存在，忽略消息段" + userIDStr)
+					continue
+				}
+				if member.User.UserName == "" {
+					member.User.UserName = member.User.FirstName + " " + member.User.LastName
+				}
+				mention += "[" + member.User.UserName + "](tg://user?id=" + strconv.FormatInt(member.User.ID, 10) + ")  "
+
+			}
 		}
 	}
-	return results
+	var newResult []tgbotapi.Chattable
+	for _, result := range results {
+		if msg, ok := result.(tgbotapi.MessageConfig); ok {
+			if mention != "" {
+				message := tgbotapi.NewMessage(chatId, mention+msg.Text)
+				message.ParseMode = tgbotapi.ModeMarkdownV2
+				newResult = append(newResult, message)
+			} else {
+				newResult = append(newResult, result)
+			}
+
+		} else {
+			newResult = append(newResult, result)
+		}
+	}
+	return newResult
 }

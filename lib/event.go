@@ -36,12 +36,20 @@ func handleMessage(update tgbotapi.Update, ob *libonebot.OneBot) {
 			libonebot.ReplySegment(strconv.FormatInt(update.Message.Chat.ID, 10)+"_"+strconv.Itoa(update.Message.MessageID),
 				strconv.FormatInt(update.Message.From.ID, 10)))
 	}
+	if update.Message.Entities != nil {
+		for _, entity := range update.Message.Entities {
+			if entity.Type == "text_mention" {
+				messages = append(messages, libonebot.MentionSegment(strconv.FormatInt(entity.User.ID, 10)))
+			}
+		}
+	}
 	if update.Message.Text != "" {
 		messages = append(messages, libonebot.TextSegment(update.Message.Text))
 	}
 	if update.Message.Photo != nil {
 		messages = append(messages, libonebot.ImageSegment(update.Message.Photo[0].FileID))
 	}
+
 	channelID := ""
 
 	detail_type := "private"
