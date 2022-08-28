@@ -42,3 +42,8 @@ onebot v12的telegram机器人实现
 + location
 + reply
 + mention
+
+## 感谢
++ [go-telegram-bot-api/telegram-bot-api](https://github.com/go-telegram-bot-api/telegram-bot-api)
++ [nonebot-adapter-onebot-v12](https://github.com/nonebot/adapter-onebot/tree/master/nonebot/adapters/onebot/v12)
++ [onebot v12](https://12.onebot.dev/)
