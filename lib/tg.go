@@ -347,24 +347,25 @@ func registerAction(bot *tgbotapi.BotAPI, ob *libonebot.OneBot) {
 
 	// set_commands
 	/*
-	 * commands []BotCommand
+	 * set_commands []BotCommand
 	 *
 	 */
 	mux.HandleFunc(ActionSetCommands, func(res libonebot.ResponseWriter, req *libonebot.Request) {
-		array, err := req.Params.GetMapArray("commands")
+		array, err := req.Params.GetArray("commands")
 		if err != nil {
 			log.Errorln("[set_commands] " + "commands不存在")
 			res.WriteFailed(libonebot.RetCodeBadParam, err)
 			return
 		}
 		var commands []tgbotapi.BotCommand
-		for _, easierMap := range array {
-			command, err := easierMap.GetString("command")
-			if err != nil {
+		for _, easier := range array {
+			easierMap := easier.(map[string]any)
+			command, ok := easierMap["command"].(string)
+			if !ok {
 				log.Errorln("[set_commands] " + "command不存在，忽略该字段")
 				continue
 			}
-			description, err := easierMap.GetString("description")
+			description, ok := easierMap["description"].(string)
 			if err != nil {
 				log.Errorln("[set_commands] " + "description不存在，忽略该字段")
 				continue
@@ -409,6 +410,68 @@ func registerAction(bot *tgbotapi.BotAPI, ob *libonebot.OneBot) {
 		if err != nil {
 			log.Errorln("[edit_text_message] 撤回消息错误" + err.Error())
 			res.WriteFailed(libonebot.RetCodeExecutionErrorBase, err)
+		}
+		res.WriteOK()
+	})
+	// set_inline_key_board" 编辑文本消息
+	/*
+	 * message_id : 消息id string
+	 * key_board [][]tgbotapi.InlineKeyboardButton  text,url or data
+	 */
+	mux.HandleFunc(ActionSetInlineKeyBoard, func(res libonebot.ResponseWriter, req *libonebot.Request) {
+		msgID, err := req.Params.GetString("message_id")
+		if err != nil {
+			log.Errorln("[edit_text_message] 获取messageID失败")
+			res.WriteFailed(libonebot.RetCodeBadParam, err)
+			return
+		}
+
+		msgIDs := strings.Split(msgID, "&")
+
+		ids := strings.Split(msgIDs[0], "_")
+		chatID, _ := strconv.ParseInt(ids[0], 10, 64)
+		messageID, _ := strconv.ParseInt(ids[1], 10, 64)
+
+		array, err := req.Params.GetArray("key_board")
+		if err != nil {
+			log.Errorln("[edit_text_message] 获取key_board失败")
+			res.WriteFailed(libonebot.RetCodeBadParam, err)
+			return
+		}
+		var buttons [][]tgbotapi.InlineKeyboardButton
+		for _, key := range array {
+			row := key.([]interface{})
+			var rows []tgbotapi.InlineKeyboardButton
+			for _, r := range row {
+				m := r.(map[string]any)
+				var text, url, data string
+				if t, ok := m["text"]; ok {
+					text = t.(string)
+				} else {
+					log.Errorln("[edit_text_message] 确实text参数，忽略该字段")
+					continue
+				}
+				if u, ok := m["url"]; ok {
+					url = u.(string)
+				}
+				if d, ok := m["data"]; ok {
+					data = d.(string)
+				}
+
+				button := tgbotapi.InlineKeyboardButton{
+					Text:         text,
+					URL:          &url,
+					CallbackData: &data,
+				}
+				rows = append(rows, button)
+			}
+			buttons = append(buttons, rows)
+		}
+		_, err = bot.Request(tgbotapi.NewEditMessageReplyMarkup(chatID, int(messageID), tgbotapi.NewInlineKeyboardMarkup(buttons...)))
+		if err != nil {
+			log.Errorln("[edit_text_message] 执行失败")
+			res.WriteFailed(libonebot.RetCodeExecutionErrorBase, err)
+			return
 		}
 		res.WriteOK()
 	})

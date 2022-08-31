@@ -24,9 +24,39 @@ func handleEvent(ob1 *libonebot.OneBot, bot *tgbotapi.BotAPI) {
 }
 
 func handleMessage(update tgbotapi.Update, ob *libonebot.OneBot) {
-	if update.Message == nil {
-		return
+	type MyMessageEvent struct {
+		libonebot.MessageEvent
+		UserID    string `json:"user_id"`
+		GroupID   string `json:"group_id"`
+		ChannelID string `json:"channel_id"`
+		GuildID   string `json:"guild_id"`
+		SubType   string `json:"sub_type"`
 	}
+	detailType := "private"
+
+	if update.Message == nil {
+		// 回调消息
+		if update.CallbackQuery != nil {
+			if update.CallbackQuery.From.ID != update.CallbackQuery.Message.Chat.ID {
+				detailType = "group"
+			}
+			pushEvent(ob, &MyMessageEvent{
+				MessageEvent: libonebot.MakeMessageEvent(time.Now(), detailType, strconv.FormatInt(update.CallbackQuery.Message.Chat.ID, 10)+"_"+strconv.Itoa(update.CallbackQuery.Message.MessageID), libonebot.Message{libonebot.TextSegment(update.CallbackQuery.Data)}, update.CallbackQuery.Data),
+				UserID:       strconv.FormatInt(update.CallbackQuery.Message.From.ID, 10),
+				GroupID:      strconv.FormatInt(update.CallbackQuery.Message.Chat.ID, 10),
+				GuildID:      strconv.FormatInt(update.CallbackQuery.Message.Chat.ID, 10),
+				SubType:      "call_back",
+			})
+			return
+		} else {
+			return
+		}
+	}
+
+	if update.CallbackQuery != nil {
+
+	}
+
 	if update.Message.Text == "" && update.Message.Photo == nil {
 		return
 	}
@@ -52,25 +82,16 @@ func handleMessage(update tgbotapi.Update, ob *libonebot.OneBot) {
 
 	channelID := ""
 
-	detail_type := "private"
 	if update.Message.From.ID != update.Message.Chat.ID {
-		detail_type = "group"
+		detailType = "group"
 		if update.Message.SenderChat != nil && update.Message.SenderChat.Type == "channel" {
-			detail_type = "channel"
+			detailType = "channel"
 			channelID = strconv.FormatInt(update.Message.SenderChat.ID, 10)
 		}
 	}
 
-	type MyMessageEvent struct {
-		libonebot.MessageEvent
-		UserID    string `json:"user_id"`
-		GroupID   string `json:"group_id"`
-		ChannelID string `json:"channel_id"`
-		GuildID   string `json:"guild_id"`
-	}
-
 	pushEvent(ob, &MyMessageEvent{
-		MessageEvent: libonebot.MakeMessageEvent(time.Now(), detail_type, strconv.FormatInt(update.Message.Chat.ID, 10)+"_"+strconv.Itoa(update.Message.MessageID), messages, update.Message.Text),
+		MessageEvent: libonebot.MakeMessageEvent(time.Now(), detailType, strconv.FormatInt(update.Message.Chat.ID, 10)+"_"+strconv.Itoa(update.Message.MessageID), messages, update.Message.Text),
 		UserID:       strconv.FormatInt(update.Message.From.ID, 10),
 		GroupID:      strconv.FormatInt(update.Message.Chat.ID, 10),
 		GuildID:      strconv.FormatInt(update.Message.Chat.ID, 10),
