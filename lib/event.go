@@ -42,7 +42,7 @@ func handleMessage(update tgbotapi.Update, ob *libonebot.OneBot) {
 			}
 			pushEvent(ob, &MyMessageEvent{
 				MessageEvent: libonebot.MakeMessageEvent(time.Now(), detailType, strconv.FormatInt(update.CallbackQuery.Message.Chat.ID, 10)+"_"+strconv.Itoa(update.CallbackQuery.Message.MessageID), libonebot.Message{libonebot.TextSegment(update.CallbackQuery.Data)}, update.CallbackQuery.Data),
-				UserID:       strconv.FormatInt(update.CallbackQuery.Message.From.ID, 10),
+				UserID:       strconv.FormatInt(update.CallbackQuery.From.ID, 10),
 				GroupID:      strconv.FormatInt(update.CallbackQuery.Message.Chat.ID, 10),
 				GuildID:      strconv.FormatInt(update.CallbackQuery.Message.Chat.ID, 10),
 				SubType:      "call_back",

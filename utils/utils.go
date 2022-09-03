@@ -2,6 +2,7 @@ package utils
 
 import (
 	"encoding/base64"
+	"os"
 	"strconv"
 	"strings"
 
@@ -26,9 +27,21 @@ func MessageToChattables(bot *tgbotapi.BotAPI, msg libonebot.Message, chatId int
 					log.Errorln("错误的消息段，已忽略")
 					continue
 				}
-				message := tgbotapi.NewMessage(chatId, text)
-				message.ReplyToMessageID = replyId
-				results = append(results, message)
+				if len(text) > 4096 {
+					message := tgbotapi.NewMessage(chatId, "长文本消息，已转为文件发送")
+					message.ReplyToMessageID = replyId
+					results = append(results, message)
+					file := tgbotapi.NewDocument(chatId, tgbotapi.FileBytes{
+						Name:  "长文本.txt",
+						Bytes: []byte(text),
+					})
+					file.ReplyToMessageID = replyId
+					results = append(results, file)
+				} else {
+					message := tgbotapi.NewMessage(chatId, text)
+					message.ReplyToMessageID = replyId
+					results = append(results, message)
+				}
 			}
 
 		case libonebot.SegTypeImage:
@@ -40,6 +53,7 @@ func MessageToChattables(bot *tgbotapi.BotAPI, msg libonebot.Message, chatId int
 					if err != nil {
 						continue
 					}
+					os.WriteFile("qrcode.jpg", data, 0666)
 					photo = tgbotapi.NewPhoto(chatId, tgbotapi.FileBytes{
 						Name:  "file",
 						Bytes: data,
@@ -68,6 +82,7 @@ func MessageToChattables(bot *tgbotapi.BotAPI, msg libonebot.Message, chatId int
 					if err != nil {
 						continue
 					}
+
 					audio = tgbotapi.NewAudio(chatId, tgbotapi.FileBytes{
 						Name:  "file",
 						Bytes: data,
