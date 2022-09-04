@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/botuniverse/go-libonebot"
@@ -17,13 +18,13 @@ func handleEvent(ob1 *libonebot.OneBot, bot *tgbotapi.BotAPI) {
 			update := <-channel
 			data, _ := json.Marshal(update)
 			_ = os.WriteFile("update.json", data, 0666)
-			handleMessage(update, ob)
+			handleMessage(update, ob, bot)
 			handleRequest(update, ob)
 		}
 	}(ob1)
 }
 
-func handleMessage(update tgbotapi.Update, ob *libonebot.OneBot) {
+func handleMessage(update tgbotapi.Update, ob *libonebot.OneBot, bot *tgbotapi.BotAPI) {
 	type MyMessageEvent struct {
 		libonebot.MessageEvent
 		UserID    string `json:"user_id"`
@@ -53,10 +54,6 @@ func handleMessage(update tgbotapi.Update, ob *libonebot.OneBot) {
 		}
 	}
 
-	if update.CallbackQuery != nil {
-
-	}
-
 	if update.Message.Text == "" && update.Message.Photo == nil {
 		return
 	}
@@ -70,6 +67,12 @@ func handleMessage(update tgbotapi.Update, ob *libonebot.OneBot) {
 		for _, entity := range update.Message.Entities {
 			if entity.Type == "text_mention" {
 				messages = append(messages, libonebot.MentionSegment(strconv.FormatInt(entity.User.ID, 10)))
+			} else if entity.Type == "bot_command" {
+				if strings.Contains(update.Message.Text, bot.Self.UserName) {
+					messages = append(messages, libonebot.MentionSegment(strconv.FormatInt(bot.Self.ID, 10)))
+					update.Message.Text = strings.ReplaceAll(update.Message.Text, "@"+bot.Self.UserName, "")
+				}
+
 			}
 		}
 	}
